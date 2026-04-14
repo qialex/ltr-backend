@@ -1,8 +1,9 @@
 import { User } from "../types";
+import logger from "../utils/logger";
 
 const hashFor = (envVar: string, username: string): string => {
   const hash = process.env[envVar];
-  if (!hash) console.warn(`[startup] ${envVar} is not set — login will fail for "${username}"`);
+  if (!hash) logger.warn(`[startup] ${envVar} is not set — login will fail for "${username}"`);
   return hash ?? "";
 };
 

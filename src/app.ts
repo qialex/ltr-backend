@@ -1,12 +1,17 @@
 import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import pinoHttp from "pino-http";
 import authRouter from "./routes/auth";
+import logger from './utils/logger';
 import ticketsRouter from "./routes/tickets";
 import statsRouter from "./routes/stats";
 
 const app = express();
+app.use(helmet());
 app.use(express.json());
+app.use(pinoHttp({ logger }));
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -23,9 +28,9 @@ app.use("/stats", statsRouter);
 
 // Centralized error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("Unhandled error:", err);
+  logger.error({ err }, "Unhandled error");
   res.status(500).json({ error: "Internal server error" });
 });
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));

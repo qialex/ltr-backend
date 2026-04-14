@@ -1,5 +1,6 @@
 import { LotteryApiService } from "./lotteryApiService";
 import { DrawResult, EnrichedTicket, UserStats } from "../types";
+import logger from "../utils/logger";
 
 export class LotteryService {
   constructor(private readonly lotteryApi: LotteryApiService = new LotteryApiService()) {}
@@ -25,7 +26,7 @@ export class LotteryService {
       if (entry.status === "fulfilled") {
         drawMap.set(entry.value[0], entry.value[1]);
       } else {
-        console.error("Failed to fetch draw result:", entry.reason);
+        logger.error({ err: entry.reason }, "Failed to fetch draw result");
       }
     }
 
@@ -67,7 +68,7 @@ export class LotteryService {
     const externalWinnings = externalWinningsAvailable ? winningsResult.value : null;
 
     if (!externalWinningsAvailable) {
-      console.warn("Could not fetch external winnings:", winningsResult.reason);
+      logger.warn({ err: winningsResult.reason }, "Could not fetch external winnings");
     }
 
     const wonTickets = tickets.filter((t) => t.won);
