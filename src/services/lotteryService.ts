@@ -1,32 +1,39 @@
 import { LotteryApiService } from "./lotteryApiService";
-import { Ticket, EnrichedTicket, UserStats } from "../types";
+import { DrawResult, EnrichedTicket, UserStats } from "../types";
 
 export class LotteryService {
   constructor(private readonly lotteryApi: LotteryApiService = new LotteryApiService()) {}
 
   private countMatches(ticketNumbers: number[], winningNumbers: number[]): number {
-    return ticketNumbers.filter((n) => winningNumbers.includes(n)).length;
+    return ticketNumbers.length + winningNumbers.length - new Set([...ticketNumbers, ...winningNumbers]).size;
   }
 
   async getEnrichedTickets(userId: number): Promise<EnrichedTicket[]> {
     const tickets = await this.lotteryApi.getTickets(userId);
 
-    const drawResults = await Promise.allSettled(
-      tickets.map((t: Ticket) => this.lotteryApi.getDrawResult(t.drawId))
+    // Fetch each unique draw once — multiple tickets can share the same drawId
+    const uniqueDrawIds = [...new Set(tickets.map((t) => t.drawId))];
+    const drawEntries = await Promise.allSettled(
+      uniqueDrawIds.map(async (drawId) => {
+        const result = await this.lotteryApi.getDrawResult(drawId);
+        return [drawId, result] as const;
+      })
     );
 
-    const enriched: EnrichedTicket[] = [];
-
-    for (let i = 0; i < tickets.length; i++) {
-      const ticket = tickets[i];
-      const drawResult = drawResults[i];
-
-      if (drawResult.status === "rejected") {
-        console.error(`Failed to fetch draw ${ticket.drawId}:`, drawResult.reason);
-        continue;
+    const drawMap = new Map<string, DrawResult>();
+    for (const entry of drawEntries) {
+      if (entry.status === "fulfilled") {
+        drawMap.set(entry.value[0], entry.value[1]);
+      } else {
+        console.error("Failed to fetch draw result:", entry.reason);
       }
+    }
 
-      const draw = drawResult.value;
+    const enriched: EnrichedTicket[] = [];
+    for (const ticket of tickets) {
+      const draw = drawMap.get(ticket.drawId);
+      if (!draw) continue;
+
       const matchCount = this.countMatches(ticket.numbers, draw.winningNumbers);
       const prize = draw.prizes[String(matchCount)] ?? 0;
 
@@ -56,9 +63,10 @@ export class LotteryService {
     }
 
     const tickets = ticketsResult.value;
-    const externalWinnings = winningsResult.status === "fulfilled" ? winningsResult.value : null;
+    const externalWinningsAvailable = winningsResult.status === "fulfilled";
+    const externalWinnings = externalWinningsAvailable ? winningsResult.value : null;
 
-    if (winningsResult.status === "rejected") {
+    if (!externalWinningsAvailable) {
       console.warn("Could not fetch external winnings:", winningsResult.reason);
     }
 
@@ -73,6 +81,7 @@ export class LotteryService {
       totalWinnings,
       winRate,
       externalWinnings,
+      externalWinningsAvailable,
     };
   }
 }

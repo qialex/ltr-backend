@@ -32,6 +32,7 @@ export interface UserStats {
   totalWinnings: number;
   winRate: string;
   externalWinnings: unknown;
+  externalWinningsAvailable: boolean;
 }
 
 export interface JwtPayload {
