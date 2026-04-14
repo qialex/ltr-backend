@@ -26,6 +26,11 @@ app.use("/login", loginLimiter, authRouter);
 app.use("/tickets", ticketsRouter);
 app.use("/stats", statsRouter);
 
+// 404
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
 // Centralized error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   logger.error({ err }, "Unhandled error");
