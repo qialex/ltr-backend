@@ -27,7 +27,7 @@ app.use("/tickets", ticketsRouter);
 app.use("/stats", statsRouter);
 
 // 404
-app.use((_req: Request, res: Response) => {
+app.use((_req: Request, res: Response) => { 
   res.status(404).json({ error: "Not found" });
 });
 
